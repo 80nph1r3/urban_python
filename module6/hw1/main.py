@@ -12,6 +12,9 @@ class Animal:
         self.fed = False
 
     def eat(self, food: Plant) -> None:
+        if not isinstance(food, Plant):
+            print(f"{self.name} ест только растения!")
+            return
         if food.edible:
             print(f"{self.name} съел {food.name}")
             self.fed = True
@@ -50,6 +53,7 @@ if __name__ == "__main__":
 
     a1.eat(p1)
     a2.eat(p2)
+    a2.eat(a1)
 
     print(a1.alive)
     print(a2.fed)

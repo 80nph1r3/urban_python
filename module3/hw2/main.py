@@ -2,7 +2,7 @@ import re
 
 
 def send_email(
-    message: str, recipient: str, sender="university.help@gmail.com"
+    message: str, recipient: str, *, sender="university.help@gmail.com"
 ) -> None:
     if not (is_valid_email(recipient) and is_valid_email(sender)):
         print(f"Невозможно отправить письмо с адреса {sender} на адрес {recipient}")
@@ -39,3 +39,4 @@ if __name__ == "__main__":
         "urban.teacher@mail.ru",
         sender="urban.teacher@mail.ru",
     )
+    send_email("a", "example@example.com", sender="example2@example.com")
