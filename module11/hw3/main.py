@@ -13,9 +13,10 @@ def introspection_info(obj: object) -> dict:
         "module": module.__name__ if module else None,
     }
     for name, value in inspect.getmembers(obj):
-        attrs["attributes"].append(name)
         if callable(value):
             attrs["methods"].append(name)
+        else:
+            attrs["attributes"].append(name)
     return attrs
 
 
