@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-API_TOKEN = ""
+API_TOKEN = "6898179198:AAHDFnDVaVTzFU710T8SjOsA2Z9fHOfbebw"
 FORM_ROUTER = Router()
 
 
@@ -44,6 +44,12 @@ async def send_calories(message: Message, state: FSMContext):
         int(data["weight"]) * 10 + int(data["height"]) * 6.25 - int(data["age"]) * 5 + 5
     )
     await message.answer(f"Норма калорий: {result}")
+    await state.clear()
+
+
+@FORM_ROUTER.message()
+async def all_messages(message: Message, state: FSMContext) -> None:
+    await message.answer('Введите "calories", чтобы начать общение.')
 
 
 async def main() -> None:
