@@ -1,19 +1,21 @@
 import asyncio
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
-    Message,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-    InlineKeyboardButton,
     CallbackQuery,
     FSInputFile,
+    InlineKeyboardButton,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
-from aiogram.filters import CommandStart
+
+from crud_functions import add_user, get_all_products, is_included
 
 API_TOKEN = ""
 FORM_ROUTER = Router()
@@ -25,6 +27,13 @@ class UserState(StatesGroup):
     weight = State()
 
 
+class RegistrationState(StatesGroup):
+    username = State()
+    email = State()
+    age = State()
+    balance = State()
+
+
 @FORM_ROUTER.message(CommandStart())
 async def start(message: Message) -> None:
     keyboard = ReplyKeyboardMarkup(
@@ -33,6 +42,7 @@ async def start(message: Message) -> None:
                 KeyboardButton(text="Рассчитать"),
                 KeyboardButton(text="Информация"),
                 KeyboardButton(text="Купить"),
+                KeyboardButton(text="Регистрация"),
             ]
         ],
         resize_keyboard=True,
@@ -42,11 +52,42 @@ async def start(message: Message) -> None:
     )
 
 
+@FORM_ROUTER.message(F.text == "Регистрация")
+async def sign_up(message: Message, state: State) -> None:
+    await message.answer("Введите имя пользователя (только латинский алфавит):")
+    await state.set_state(RegistrationState.username)
+
+
+@FORM_ROUTER.message(RegistrationState.username)
+async def set_username(message: Message, state: State) -> None:
+    if await is_included(message.text):
+        await message.answer("Пользователь существует, введите другое имя")
+        await state.set_state(RegistrationState.username)
+    else:
+        await state.update_data(username=message.text)
+        await message.answer("Введите свой email:")
+        await state.set_state(RegistrationState.email)
+
+
+@FORM_ROUTER.message(RegistrationState.email)
+async def set_email(message: Message, state: State) -> None:
+    await state.update_data(email=message.text)
+    await message.answer("Введите свой возраст:")
+    await state.set_state(RegistrationState.age)
+
+
+@FORM_ROUTER.message(RegistrationState.age)
+async def set_user_age(message: Message, state: State) -> None:
+    await state.update_data(age=message.text)
+    user_data = await state.get_data()
+    await add_user(user_data["username"], user_data["email"], user_data["age"])
+
+
 @FORM_ROUTER.message(F.text == "Рассчитать")
 async def main_menu(message: Message) -> None:
     inline_keyboard = InlineKeyboardBuilder(
         [
-            [
+            t[
                 InlineKeyboardButton(
                     text="Рассчитать норму калорий", callback_data="calories"
                 ),
@@ -59,54 +100,20 @@ async def main_menu(message: Message) -> None:
 
 @FORM_ROUTER.message(F.text == "Купить")
 async def get_buying_list(message: Message) -> None:
-    products = {
-        "apple": {
-            "name": "Яблоко",
-            "image": "apple.jpg",
-            "description": "Сочный плод яблони, который употребляется в пищу в свежем и запеченном виде, служит сырьём в кулинарии и для приготовления напитков.",
-            "price": 100,
-        },
-        "banana": {
-            "name": "Банан",
-            "image": "banana.jpg",
-            "description": "Одна из древнейших пищевых культур, а для тропических стран — важнейшее пищевое растение и главная статья экспорта.",
-            "price": 200,
-        },
-        "pear": {
-            "name": "Груша",
-            "image": "pear.jpg",
-            "description": "Род плодовых и декоративных деревьев и кустарников семейства розовые (Rosaceae), а также их плод",
-            "price": 300,
-        },
-        "orange": {
-            "name": "Апельсин",
-            "image": "orange.jpg",
-            "description": "Самая распространённая цитрусовая культура во всех тропических и субтропических областях мира",
-            "price": 400,
-        },
-    }
+    products = await get_all_products()
     keyboard = InlineKeyboardBuilder(
         [
             [
-                InlineKeyboardButton(
-                    text=products["orange"]["name"], callback_data="product_buying"
-                ),
-                InlineKeyboardButton(
-                    text=products["banana"]["name"], callback_data="product_buying"
-                ),
-                InlineKeyboardButton(
-                    text=products["pear"]["name"], callback_data="product_buying"
-                ),
-                InlineKeyboardButton(
-                    text=products["apple"]["name"], callback_data="product_buying"
-                ),
+                InlineKeyboardButton(text=product[1], callback_data="product_buying")
+                for product in products
             ],
         ]
     )
-    for key, value in products.items():
+    images = ["orange.jpg", "banana.jpg", "pear.jpg", "apple.jpg"]
+    for product, image in zip(products, images):
         await message.answer_photo(
-            FSInputFile(value["image"]),
-            caption=f"Название: {value['name']} | Описание: {value['description']} | Цена: {value['price']}",
+            FSInputFile(image),
+            caption=f"Название: {product[1]} | Описание: {product[2]} | Цена: {product[3]}",
         )
     await message.answer(
         "Выберите товар для покупки:", reply_markup=keyboard.as_markup()
